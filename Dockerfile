@@ -16,6 +16,7 @@ RUN mv "$PHP_INI_DIR/php.ini-production" "$PHP_INI_DIR/php.ini" \
     'upload_max_filesize=16M' \
     'post_max_size=16M' \
     'memory_limit=256M' \
+    'pcre.backtrack_limit=50000000' \
     > "$PHP_INI_DIR/conf.d/violetblue.ini"
 
 RUN git clone --depth=1 \
