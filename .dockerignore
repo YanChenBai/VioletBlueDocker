@@ -1,0 +1,16 @@
+.git
+.github
+
+.env
+
+Dockerfile
+compose.yaml
+nginx.conf
+
+README*
+README_RES
+
+.vscode
+.idea
+
+data

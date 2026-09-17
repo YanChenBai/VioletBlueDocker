@@ -1,0 +1,94 @@
+name: violetblue
+
+x-violetblue-image: &violetblue-image
+  image: violetblue-php:local
+  build:
+    context: .
+
+services:
+  init-app:
+    <<: *violetblue-image
+    container_name: violetblue-init
+    user: root
+    restart: "no"
+
+    command:
+      - sh
+      - -c
+      - |
+        set -e
+
+        if [ ! -f /var/www/html/index.php ]; then
+          echo "Initializing VioletBlue..."
+          cp -a /opt/violetblue-src/. /var/www/html/
+        else
+          echo "VioletBlue already initialized."
+        fi
+
+        mkdir -p /var/www/html/Clover-Lite/cache
+        chown -R www-data:www-data /var/www/html
+
+    volumes:
+      - ./data/app:/var/www/html
+
+  php:
+    image: violetblue-php:local
+    pull_policy: never
+
+    container_name: violetblue-php
+    restart: unless-stopped
+
+    depends_on:
+      init-app:
+        condition: service_completed_successfully
+      db:
+        condition: service_healthy
+
+    volumes:
+      - ./data/app:/var/www/html
+
+    expose:
+      - "9000"
+
+  nginx:
+    image: m.daocloud.io/docker.io/library/nginx:latest
+
+    container_name: violetblue-nginx
+    restart: unless-stopped
+
+    depends_on:
+      php:
+        condition: service_started
+
+    ports:
+      - "127.0.0.1:${HTTP_PORT:-8080}:80"
+
+    volumes:
+      - ./data/app:/var/www/html:ro
+      - ./nginx.conf:/etc/nginx/conf.d/default.conf:ro
+
+  db:
+    image: m.daocloud.io/docker.io/library/mariadb:lts
+
+    container_name: violetblue-db
+    restart: unless-stopped
+
+    environment:
+      MARIADB_DATABASE: ${DB_NAME}
+      MARIADB_USER: ${DB_USER}
+      MARIADB_PASSWORD: ${DB_PASSWORD}
+      MARIADB_ROOT_PASSWORD: ${DB_ROOT_PASSWORD}
+
+    volumes:
+      - ./data/mariadb:/var/lib/mysql
+
+    healthcheck:
+      test:
+        - CMD
+        - healthcheck.sh
+        - --connect
+        - --innodb_initialized
+      interval: 5s
+      timeout: 5s
+      retries: 30
+      start_period: 15s
